@@ -67,6 +67,9 @@ public final class CaptureActivityHandler extends Handler {
 
     @Override
     public void handleMessage(Message message) {
+        if (state == State.DONE) {
+            return;
+        }
         switch (message.what) {
             case R.id.auto_focus:
                 // Log.d(TAG, "Got auto-focus message");
@@ -127,8 +130,10 @@ public final class CaptureActivityHandler extends Handler {
         }
 
         // Be absolutely sure we don't send any queued up messages
+        removeMessages(R.id.auto_focus);
         removeMessages(R.id.decode_succeeded);
         removeMessages(R.id.decode_failed);
+        removeMessages(R.id.restart_preview);
     }
 
     private void restartPreviewAndDecode() {

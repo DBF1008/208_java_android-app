@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Minimal manifest for Robolectric test runner.
+  This allows Robolectric to construct Activity instances in unit tests
+  without needing the full application manifest.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="cn.eoe.app">
+
+    <application>
+        <activity android:name="com.google.zxing.CaptureActivity" />
+    </application>
+
+</manifest>

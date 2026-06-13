@@ -102,6 +102,7 @@ public class CaptureActivity extends Activity implements Callback {
         }
         initBeepSound();
         vibrate = true;
+        inactivityTimer.onActivity();
     }
 
     @Override
@@ -112,6 +113,8 @@ public class CaptureActivity extends Activity implements Callback {
             handler = null;
         }
         CameraManager.get().closeDriver();
+        releaseBeepSound();
+        inactivityTimer.pause();
     }
 
     @Override
@@ -207,8 +210,21 @@ public class CaptureActivity extends Activity implements Callback {
                 mediaPlayer.setVolume(BEEP_VOLUME, BEEP_VOLUME);
                 mediaPlayer.prepare();
             } catch (IOException e) {
+                mediaPlayer.release();
                 mediaPlayer = null;
             }
+        }
+    }
+
+    /**
+     * Release the beep MediaPlayer and free its audio resources.
+     * Safe to call multiple times — after release the field is null
+     * and initBeepSound() will recreate it on the next onResume().
+     */
+    private void releaseBeepSound() {
+        if (mediaPlayer != null) {
+            mediaPlayer.release();
+            mediaPlayer = null;
         }
     }
 
@@ -228,8 +244,10 @@ public class CaptureActivity extends Activity implements Callback {
      * When the beep has finished playing, rewind to queue up another one.
      */
     private final OnCompletionListener beepListener = new OnCompletionListener() {
-        public void onCompletion(MediaPlayer mediaPlayer) {
-            mediaPlayer.seekTo(0);
+        public void onCompletion(MediaPlayer mp) {
+            if (mp != null) {
+                mp.seekTo(0);
+            }
         }
     };
 

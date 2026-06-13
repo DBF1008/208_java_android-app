@@ -34,18 +34,42 @@ public final class InactivityTimer {
   private final ScheduledExecutorService inactivityTimer =
       Executors.newSingleThreadScheduledExecutor(new DaemonThreadFactory());
   private final Activity activity;
+  private final int delaySeconds;
   private ScheduledFuture<?> inactivityFuture = null;
 
   public InactivityTimer(Activity activity) {
+    this(activity, INACTIVITY_DELAY_SECONDS);
+  }
+
+  /**
+   * Package-private constructor that allows specifying a custom delay,
+   * primarily useful for testing.
+   *
+   * @param activity     The Activity to finish on inactivity.
+   * @param delaySeconds Timeout in seconds before the Activity is finished.
+   */
+  InactivityTimer(Activity activity, int delaySeconds) {
     this.activity = activity;
+    this.delaySeconds = delaySeconds;
     onActivity();
   }
 
   public void onActivity() {
     cancel();
     inactivityFuture = inactivityTimer.schedule(new FinishListener(activity),
-                                                INACTIVITY_DELAY_SECONDS,
+                                                delaySeconds,
                                                 TimeUnit.SECONDS);
+  }
+
+  /**
+   * Cancels the pending inactivity timeout without shutting down the
+   * underlying executor.  Call this from {@code Activity.onPause()} so
+   * the timer does not fire {@code finish()} while the Activity is
+   * invisible.  A subsequent call to {@link #onActivity()} (typically
+   * from {@code onResume()}) will re-arm the timeout.
+   */
+  public void pause() {
+    cancel();
   }
 
   private void cancel() {
