@@ -5,7 +5,6 @@ import java.util.List;
 
 import android.app.Activity;
 import android.os.Bundle;
-import android.os.Handler;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -19,26 +18,18 @@ import cn.eoe.app.entity.WikiCategoryListEntity;
 import cn.eoe.app.entity.WikiContentItem;
 import cn.eoe.app.entity.WikiMoreResponse;
 
-public class WikiFragment extends BaseListFragment {
+public class WikiFragment extends BaseListFragment
+		implements BaseListFragment.LoadMoreCallback<WikiMoreResponse> {
 
 	List<WikiContentItem> items_list = new ArrayList<WikiContentItem>();
 	private Activity mActivity;
-	private WikiCategoryListEntity loadMoreEntity;
 	private MyAdapter mAdapter;
 	private String more_url;
 
-	private Handler mHandler = new Handler() {
-		public void handleMessage(android.os.Message msg) {
-			switch (msg.what) {
-			case 0:
-				more_url = loadMoreEntity.getMore_url();
-				mAdapter.appendToList(loadMoreEntity.getItems());
-				break;
-			}
-			onLoad();
-		};
-
-	};
+	// Empty constructor required for Fragment re-instantiation
+	// (e.g. after configuration change or ViewPager recreation)
+	public WikiFragment() {
+	}
 
 	public WikiFragment(Activity c, WikiCategoryListEntity categorys) {
 		this.mActivity = c;
@@ -51,7 +42,6 @@ public class WikiFragment extends BaseListFragment {
 	@Override
 	public View onCreateView(LayoutInflater inflater, ViewGroup container,
 			Bundle savedInstanceState) {
-		// TODO Auto-generated method stub
 		super.onCreateView(inflater, container, savedInstanceState);
 		listview.setXListViewListener(this);
 		// construct the RelativeLayout
@@ -63,7 +53,6 @@ public class WikiFragment extends BaseListFragment {
 			@Override
 			public void onItemClick(AdapterView<?> parent, View view,
 					int position, long id) {
-				// TODO Auto-generated method stub
 				WikiContentItem item = (WikiContentItem) mAdapter
 						.getItem(position - 1);
 				startDetailActivity(mActivity, item.getDetail_url(), "教程",
@@ -72,6 +61,65 @@ public class WikiFragment extends BaseListFragment {
 		});
 		return view;
 	}
+
+	@Override
+	public void onDestroyView() {
+		super.onDestroyView();
+		mAdapter = null;
+	}
+
+	// ---- LoadMoreCallback<WikiMoreResponse> ----
+
+	@Override
+	public WikiMoreResponse doLoadMore() {
+		return new WikiDao(mActivity).getMore(more_url);
+	}
+
+	@Override
+	public List<?> extractItems(WikiMoreResponse response) {
+		WikiCategoryListEntity entity = response.getResponse();
+		return entity != null ? entity.getItems() : null;
+	}
+
+	@Override
+	public String extractMoreUrl(WikiMoreResponse response) {
+		WikiCategoryListEntity entity = response.getResponse();
+		return entity != null ? entity.getMore_url() : null;
+	}
+
+	// ---- BaseListFragment abstract overrides ----
+
+	@Override
+	protected void appendToAdapter(Object items) {
+		if (mAdapter != null) {
+			@SuppressWarnings("unchecked")
+			List<WikiContentItem> list = (List<WikiContentItem>) items;
+			mAdapter.appendToList(list);
+		}
+	}
+
+	@Override
+	protected void onMoreUrlUpdated(String newMoreUrl) {
+		this.more_url = newMoreUrl;
+	}
+
+	// ---- IXListViewListener ----
+
+	@Override
+	public void onRefresh() {
+		onLoad();
+	}
+
+	@Override
+	public void onLoadMore() {
+		if (more_url == null || more_url.equals("")) {
+			onLoad();
+			return;
+		}
+		performLoadMore(this);
+	}
+
+	// ---- Inner adapter ----
 
 	class MyAdapter extends BaseAdapter {
 
@@ -92,25 +140,21 @@ public class WikiFragment extends BaseListFragment {
 
 		@Override
 		public int getCount() {
-			// TODO Auto-generated method stub
 			return mList.size();
 		}
 
 		@Override
 		public Object getItem(int position) {
-			// TODO Auto-generated method stub
 			return mList.get(position);
 		}
 
 		@Override
 		public long getItemId(int position) {
-			// TODO Auto-generated method stub
 			return position;
 		}
 
 		@Override
 		public View getView(int position, View convertView, ViewGroup parent) {
-			// TODO Auto-generated method stub
 			ViewHolder holder;
 			WikiContentItem item = mList.get(position);
 			if (convertView == null) {
@@ -132,32 +176,6 @@ public class WikiFragment extends BaseListFragment {
 	static class ViewHolder {
 		public TextView title_;
 		public TextView short_;
-	}
-
-	@Override
-	public void onRefresh() {
-		// TODO Auto-generated method stub
-		onLoad();
-	}
-
-	@Override
-	public void onLoadMore() {
-		if (more_url==null || more_url.equals("")) {
-			mHandler.sendEmptyMessage(1);
-			return;
-		} else {
-			new Thread() {
-				@Override
-				public void run() {
-					WikiMoreResponse response = new WikiDao(mActivity)
-							.getMore(more_url);
-					if (response != null) {
-						loadMoreEntity = response.getResponse();
-						mHandler.sendEmptyMessage(0);
-					}
-				}
-			}.start();
-		}
 	}
 
 }

@@ -5,7 +5,6 @@ import java.util.List;
 
 import android.app.Activity;
 import android.os.Bundle;
-import android.os.Handler;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -23,32 +22,20 @@ import cn.eoe.app.utils.ImageUtil;
 
 /**
  * 博客部分的Fragment
- * 
+ *
  * @author wangxin
- * 
+ *
  */
-public class BlogFragment extends BaseListFragment {
+public class BlogFragment extends BaseListFragment
+		implements BaseListFragment.LoadMoreCallback<BlogsMoreResponse> {
 
 	List<BlogContentItem> items_list = new ArrayList<BlogContentItem>();
 	private Activity mActivity;
 	private String more_url;
-	private BlogsCategoryListEntity loadMoreEntity;
 	private MyAdapter mAdapter;
 
 	public BlogFragment() {
 	}
-
-	private Handler mHandler = new Handler() {
-		public void handleMessage(android.os.Message msg) {
-			switch (msg.what) {
-			case 0:
-				more_url = loadMoreEntity.getMore_url();
-				mAdapter.appendToList(loadMoreEntity.getItems());
-				break;
-			}
-			onLoad();
-		};
-	};
 
 	public BlogFragment(Activity c, BlogsCategoryListEntity categorys) {
 		this.mActivity = c;
@@ -65,8 +52,6 @@ public class BlogFragment extends BaseListFragment {
 		super.onCreateView(inflater, container, savedInstanceState);
 		listview.setXListViewListener(this);
 		// construct the RelativeLayout
-		listview.setXListViewListener(this);
-		// construct the RelativeLayout
 		mAdapter = new MyAdapter();
 		mAdapter.appendToList(items_list);
 		listview.setAdapter(mAdapter);
@@ -75,7 +60,6 @@ public class BlogFragment extends BaseListFragment {
 			@Override
 			public void onItemClick(AdapterView<?> parent, View view,
 					int position, long id) {
-				// TODO Auto-generated method stub
 				BlogContentItem item = (BlogContentItem) mAdapter
 						.getItem(position - 1);
 				startDetailActivity(mActivity, item.getDetail_url(), "博客",
@@ -89,6 +73,65 @@ public class BlogFragment extends BaseListFragment {
 	public void onSaveInstanceState(Bundle outState) {
 		super.onSaveInstanceState(outState);
 	}
+
+	@Override
+	public void onDestroyView() {
+		super.onDestroyView();
+		mAdapter = null;
+	}
+
+	// ---- LoadMoreCallback<BlogsMoreResponse> ----
+
+	@Override
+	public BlogsMoreResponse doLoadMore() {
+		return new BlogsDao(mActivity).getMore(more_url);
+	}
+
+	@Override
+	public List<?> extractItems(BlogsMoreResponse response) {
+		BlogsCategoryListEntity entity = response.getResponse();
+		return entity != null ? entity.getItems() : null;
+	}
+
+	@Override
+	public String extractMoreUrl(BlogsMoreResponse response) {
+		BlogsCategoryListEntity entity = response.getResponse();
+		return entity != null ? entity.getMore_url() : null;
+	}
+
+	// ---- BaseListFragment abstract overrides ----
+
+	@Override
+	protected void appendToAdapter(Object items) {
+		if (mAdapter != null) {
+			@SuppressWarnings("unchecked")
+			List<BlogContentItem> list = (List<BlogContentItem>) items;
+			mAdapter.appendToList(list);
+		}
+	}
+
+	@Override
+	protected void onMoreUrlUpdated(String newMoreUrl) {
+		this.more_url = newMoreUrl;
+	}
+
+	// ---- IXListViewListener ----
+
+	@Override
+	public void onRefresh() {
+		onLoad();
+	}
+
+	@Override
+	public void onLoadMore() {
+		if (more_url == null || more_url.equals("")) {
+			onLoad();
+			return;
+		}
+		performLoadMore(this);
+	}
+
+	// ---- Inner adapter ----
 
 	class MyAdapter extends BaseAdapter {
 
@@ -109,25 +152,21 @@ public class BlogFragment extends BaseListFragment {
 
 		@Override
 		public int getCount() {
-			// TODO Auto-generated method stub
 			return mList.size();
 		}
 
 		@Override
 		public Object getItem(int position) {
-			// TODO Auto-generated method stub
 			return mList.get(position);
 		}
 
 		@Override
 		public long getItemId(int position) {
-			// TODO Auto-generated method stub
 			return position;
 		}
 
 		@Override
 		public View getView(int position, View convertView, ViewGroup parent) {
-			// TODO Auto-generated method stub
 			ViewHolder holder;
 			BlogContentItem item = mList.get(position);
 			if (convertView == null) {
@@ -152,7 +191,7 @@ public class BlogFragment extends BaseListFragment {
 			holder.short_.setText(item.getShort_content());
 			String url = item.getHead_image_url().replaceAll("=small",
 					"=middle");
-			if (url.equals(null) || url.equals("")) {
+			if (url == null || url.equals("")) {
 				holder.img_thu.setVisibility(View.GONE);
 			} else {
 				holder.img_thu.setVisibility(View.VISIBLE);
@@ -171,32 +210,4 @@ public class BlogFragment extends BaseListFragment {
 		public ImageView img_thu;
 	}
 
-	@Override
-	public void onRefresh() {
-		// TODO Auto-generated method stub
-		onLoad();
-	}
-
-	@Override
-	public void onLoadMore() {
-		// TODO Auto-generated method stub
-		if (more_url==null || more_url.equals("")) {
-			mHandler.sendEmptyMessage(1);
-			return;
-		} else {
-
-			new Thread() {
-				@Override
-				public void run() {
-					BlogsMoreResponse response = new BlogsDao(mActivity)
-							.getMore(more_url);
-					if (response != null) {
-						loadMoreEntity = response.getResponse();
-						mHandler.sendEmptyMessage(0);
-					}
-				}
-			}.start();
-		}
-
-	}
 }
