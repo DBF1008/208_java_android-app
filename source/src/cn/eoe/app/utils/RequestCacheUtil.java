@@ -76,18 +76,25 @@ public class RequestCacheUtil {
 		return Build.VERSION.SDK_INT >= Build.VERSION_CODES.FROYO;
 	}
 
+	/**
+	 * 判断网络响应是否为有效内容（非 null 且非空字符串）。
+	 * 只有有效响应才能写入缓存，防止坏响应污染已有缓存数据。
+	 */
+	static boolean isValidResponse(String response) {
+		return response != null && !response.isEmpty();
+	}
+
 	private static String getCacheRequest(Context context, String requestUrl,
 			String requestPath, String source_type, String content_type,
 			DBHelper dbHelper, boolean useCache) {
-		// TODO Auto-generated method stub
 		String result = "";
 		if (useCache) {
 			result = getStringFromSoftReference(requestUrl);
-			if (!result.equals(null) && !result.equals("")) {
+			if (isValidResponse(result)) {
 				return result;
 			}
 			result = getStringFromLocal(requestPath, requestUrl, dbHelper);
-			if (!result.equals(null) && !result.equals("")) {
+			if (isValidResponse(result)) {
 				putStringForSoftReference(requestUrl, result);
 				return result;
 			}
@@ -107,21 +114,25 @@ public class RequestCacheUtil {
 	private static String getStringFromWeb(Context context, String requestPath,
 			String requestUrl, String source_type, String content_type,
 			DBHelper dbHelper) {
-		// TODO Auto-generated method stub
-		String result = "";
+		String result = null;
 		try {
 			result = HttpUtils.getByHttpClient(context, requestUrl);
-			if (result.equals(null) && result.equals("")) {
-				return result;
-			}
-			// 更新数据库
-			Cursor cursor = getStringFromDB(requestUrl, dbHelper);
-			updateDB(cursor, requestUrl, source_type, content_type, dbHelper);
-			saveFileByRequestPath(requestPath, result);
-			putStringForSoftReference(requestUrl, result);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
+
+		// 只有拿到有效响应才刷新缓存，否则直接返回空串（不覆盖已有数据）
+		if (!isValidResponse(result)) {
+			// 尝试读取过期但仍保留在本地的缓存文件作为兜底
+			String stale = getFileFromLocal(requestPath);
+			return isValidResponse(stale) ? stale : "";
+		}
+
+		// 更新数据库
+		Cursor cursor = getStringFromDB(requestUrl, dbHelper);
+		updateDB(cursor, requestUrl, source_type, content_type, dbHelper);
+		saveFileByRequestPath(requestPath, result);
+		putStringForSoftReference(requestUrl, result);
 		return result;
 	}
 
@@ -201,13 +212,11 @@ public class RequestCacheUtil {
 					.getColumnIndex(RequestCacheColumn.Content_type));
 			long span = getSpanTimeFromConfigs(strContentType);
 			long nowTime = System.currentTimeMillis();
-			if ((nowTime - timestamp) > span * 60 * 1000) {
-				// 过期
-				deleteFileFromLocal(requestPath);
-			} else {
-				// 没过期
+			if ((nowTime - timestamp) <= span * 60 * 1000) {
+				// 没过期，正常读取
 				result = getFileFromLocal(requestPath);
 			}
+			// 过期时不删除本地文件，保留作为网络失败时的兜底数据
 		}
 		return result;
 	}
