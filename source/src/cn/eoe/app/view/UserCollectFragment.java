@@ -20,37 +20,54 @@ import cn.eoe.app.entity.UserResponse;
 
 public class UserCollectFragment extends Fragment {
 
+	static final String ARG_USER_RESPONSE = "user_response";
+
 	LinearLayout mLinearLayout;
-	private FragmentActivity mActivity;
 	private UserResponse mUserResponse;
 	private FragmentManager mFragmentManager;
 	private Context mContext;
 	private WindowManager wm;
 	private UserCollectListFragment mUserFragment;
 
-	public UserCollectFragment(UserResponse userResponse,
-			FragmentActivity activity) {
-		mActivity = activity;
-		mUserResponse = userResponse;
+	public UserCollectFragment() {
+	}
+
+	public static UserCollectFragment newInstance(UserResponse userResponse) {
+		UserCollectFragment fragment = new UserCollectFragment();
+		Bundle args = new Bundle();
+		args.putSerializable(ARG_USER_RESPONSE, userResponse);
+		fragment.setArguments(args);
+		return fragment;
+	}
+
+	@Override
+	public void onCreate(Bundle savedInstanceState) {
+		super.onCreate(savedInstanceState);
+		if (getArguments() != null) {
+			mUserResponse = (UserResponse) getArguments().getSerializable(
+					ARG_USER_RESPONSE);
+		}
 	}
 
 	@Override
 	public View onCreateView(LayoutInflater inflater, ViewGroup container,
 			Bundle savedInstanceState) {
-		// TODO Auto-generated method stub
 		super.onCreateView(inflater, container, savedInstanceState);
 		mContext = inflater.getContext();
-		wm = (WindowManager) mActivity.getSystemService(Context.WINDOW_SERVICE);
+		FragmentActivity activity = getActivity();
+		wm = (WindowManager) activity.getSystemService(Context.WINDOW_SERVICE);
 		View view = inflater.inflate(R.layout.user_collect_fragment, null);
 		mLinearLayout = (LinearLayout) view
 				.findViewById(R.id.user_linear_collect_name);
-		initLinear();
-		mFragmentManager = mActivity.getSupportFragmentManager();
-		mUserFragment = new UserCollectListFragment(mActivity, mUserResponse
-				.getFavorite().get(0));
-		mFragmentManager.beginTransaction()
-				.replace(R.id.user_linear_Collect_replace, mUserFragment)
-				.commit();
+		if (mUserResponse != null) {
+			initLinear();
+			mFragmentManager = activity.getSupportFragmentManager();
+			mUserFragment = UserCollectListFragment.newInstance(
+					mUserResponse.getFavorite().get(0));
+			mFragmentManager.beginTransaction()
+					.replace(R.id.user_linear_Collect_replace, mUserFragment)
+					.commit();
+		}
 		return view;
 	}
 
@@ -65,7 +82,6 @@ public class UserCollectFragment extends Fragment {
 	}
 
 	private TextView CreateTextView(final int i, String name) {
-		// TODO Auto-generated method stub
 		TextView tv = new TextView(mContext);
 		int width = wm.getDefaultDisplay().getWidth() / 3;
 		LayoutParams layout = new LayoutParams(width, LayoutParams.MATCH_PARENT);
@@ -82,7 +98,6 @@ public class UserCollectFragment extends Fragment {
 
 			@Override
 			public void onClick(View v) {
-				// TODO Auto-generated method stub
 				mUserFragment
 						.setListContent(mUserResponse.getFavorite().get(i));
 				if (mLinearLayout.getTag() != null) {

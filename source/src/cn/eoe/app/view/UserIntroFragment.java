@@ -23,6 +23,9 @@ import cn.eoe.app.utils.ImageUtil;
 import cn.eoe.app.utils.ImageUtil.ImageCallback;
 
 public class UserIntroFragment extends Fragment {
+
+	static final String ARG_USER_RESPONSE = "user_response";
+
 	UserResponse mUserResponse;
 	private ImageView img;
 	private TextView txtName;
@@ -34,8 +37,24 @@ public class UserIntroFragment extends Fragment {
 	private List<Map<String, Object>> mList;
 	private Context mContext;
 
-	public UserIntroFragment(UserResponse result) {
-		mUserResponse = result;
+	public UserIntroFragment() {
+	}
+
+	public static UserIntroFragment newInstance(UserResponse result) {
+		UserIntroFragment fragment = new UserIntroFragment();
+		Bundle args = new Bundle();
+		args.putSerializable(ARG_USER_RESPONSE, result);
+		fragment.setArguments(args);
+		return fragment;
+	}
+
+	@Override
+	public void onCreate(Bundle savedInstanceState) {
+		super.onCreate(savedInstanceState);
+		if (getArguments() != null) {
+			mUserResponse = (UserResponse) getArguments().getSerializable(
+					ARG_USER_RESPONSE);
+		}
 	}
 
 	// [start]继承方法
@@ -46,8 +65,10 @@ public class UserIntroFragment extends Fragment {
 		mContext = inflater.getContext();
 		View v = inflater.inflate(R.layout.user_center_intro_fragment, null);
 		initControl(v);
-		initGridView();
-		setControl();
+		if (mUserResponse != null) {
+			initGridView();
+			setControl();
+		}
 		return v;
 	}
 

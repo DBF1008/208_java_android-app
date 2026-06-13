@@ -16,22 +16,36 @@ import cn.eoe.app.ui.UserLoginUidActivity;
 
 public class UserLogOutFragment extends Fragment implements OnClickListener {
 
+	static final String ARG_IS_SHOW_TXT = "is_show_txt";
+
 	private Button btnLogOut;
 	private TextView mtxt;
 
 	private Context mContext;
-	private Activity mActivity;
 	private boolean isShowtxt;
 
-	public UserLogOutFragment(Activity activity,boolean isshow) {
-		mActivity = activity;
-		isShowtxt=isshow;
+	public UserLogOutFragment() {
+	}
+
+	public static UserLogOutFragment newInstance(boolean isShowtxt) {
+		UserLogOutFragment fragment = new UserLogOutFragment();
+		Bundle args = new Bundle();
+		args.putBoolean(ARG_IS_SHOW_TXT, isShowtxt);
+		fragment.setArguments(args);
+		return fragment;
+	}
+
+	@Override
+	public void onCreate(Bundle savedInstanceState) {
+		super.onCreate(savedInstanceState);
+		if (getArguments() != null) {
+			isShowtxt = getArguments().getBoolean(ARG_IS_SHOW_TXT, false);
+		}
 	}
 
 	@Override
 	public View onCreateView(LayoutInflater inflater, ViewGroup container,
 			Bundle savedInstanceState) {
-		// TODO Auto-generated method stub
 		super.onCreateView(inflater, container, savedInstanceState);
 		mContext = inflater.getContext();
 		View view = inflater.inflate(R.layout.user_login_log_out, null);
@@ -52,14 +66,16 @@ public class UserLogOutFragment extends Fragment implements OnClickListener {
 
 	@Override
 	public void onClick(View v) {
-		// TODO Auto-generated method stub
 		switch (v.getId()) {
 		case R.id.user_button_logOut:
 			SharedPreferences share = mContext.getSharedPreferences(
 					UserLoginUidActivity.SharedName, Context.MODE_PRIVATE);
 			SharedPreferences.Editor edit = share.edit();
 			edit.clear().commit();
-			mActivity.finish();
+			Activity activity = getActivity();
+			if (activity != null) {
+				activity.finish();
+			}
 			break;
 		}
 	}

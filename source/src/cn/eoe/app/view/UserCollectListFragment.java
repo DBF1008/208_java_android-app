@@ -25,37 +25,55 @@ import cn.eoe.app.utils.IntentUtil;
 
 public class UserCollectListFragment extends Fragment implements
 		OnItemClickListener {
+
+	static final String ARG_FAVORITE_LIST = "favorite_list";
+
 	private ListView mlv;
 	private List<Map<String, Object>> mlist;
 	private SimpleAdapter mAdapter;
 	private Context mContext;
-	private Activity mActivity;
 
 	private UserFavoriteList mUserFavoriteList;
 
-	public UserCollectListFragment(Activity activity,
+	public UserCollectListFragment() {
+	}
+
+	public static UserCollectListFragment newInstance(
 			UserFavoriteList userFavoriteList) {
-		mUserFavoriteList = userFavoriteList;
-		mActivity = activity;
+		UserCollectListFragment fragment = new UserCollectListFragment();
+		Bundle args = new Bundle();
+		args.putSerializable(ARG_FAVORITE_LIST, userFavoriteList);
+		fragment.setArguments(args);
+		return fragment;
+	}
+
+	@Override
+	public void onCreate(Bundle savedInstanceState) {
+		super.onCreate(savedInstanceState);
+		if (getArguments() != null) {
+			mUserFavoriteList = (UserFavoriteList) getArguments()
+					.getSerializable(ARG_FAVORITE_LIST);
+		}
 	}
 
 	@Override
 	public View onCreateView(LayoutInflater inflater, ViewGroup container,
 			Bundle savedInstanceState) {
-		// TODO Auto-generated method stub
 		super.onCreateView(inflater, container, savedInstanceState);
 		mContext = inflater.getContext();
 		View view = inflater.inflate(R.layout.user_collect_list, null);
 		mlv = (ListView) view.findViewById(R.id.user_listview_collect);
 		mlist = new ArrayList<Map<String, Object>>();
-		getData();
-		mAdapter = new SimpleAdapter(inflater.getContext(), mlist,
-				R.layout.user_collect_list_item, new String[] { "name",
-						"content" }, new int[] {
-						R.id.user_textview_collectTitle,
-						R.id.user_textview_collectContent });
-		mlv.setAdapter(mAdapter);
-		mlv.setOnItemClickListener(this);
+		if (mUserFavoriteList != null) {
+			getData();
+			mAdapter = new SimpleAdapter(inflater.getContext(), mlist,
+					R.layout.user_collect_list_item, new String[] { "name",
+							"content" }, new int[] {
+							R.id.user_textview_collectTitle,
+							R.id.user_textview_collectContent });
+			mlv.setAdapter(mAdapter);
+			mlv.setOnItemClickListener(this);
+		}
 		return view;
 	}
 
@@ -72,13 +90,14 @@ public class UserCollectListFragment extends Fragment implements
 
 	@Override
 	public void onItemClick(AdapterView<?> arg0, View arg1, int arg2, long arg3) {
-		// TODO Auto-generated method stub
 		HashMap<String, Object> map = (HashMap<String, Object>) arg0
 				.getItemAtPosition(arg2);
-		// 转到详情页面
-		startDetailActivity(mActivity, map.get("target").toString(),
-				mUserFavoriteList.getName().toString(), map.get("name")
-						.toString());
+		Activity activity = getActivity();
+		if (activity != null) {
+			startDetailActivity(activity, map.get("target").toString(),
+					mUserFavoriteList.getName().toString(), map.get("name")
+							.toString());
+		}
 	}
 
 	public void setListContent(UserFavoriteList userFavoriteList) {

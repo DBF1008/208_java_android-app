@@ -1,6 +1,10 @@
 package cn.eoe.app.entity;
 
-public class UserCollectionItem {
+import java.io.Serializable;
+
+public class UserCollectionItem implements Serializable {
+
+	private static final long serialVersionUID = 1L;
 	private String title;
 	private String short_content;
 	private String url;
