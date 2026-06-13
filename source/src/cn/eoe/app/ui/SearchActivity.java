@@ -1,6 +1,5 @@
 package cn.eoe.app.ui;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -20,10 +19,9 @@ import android.widget.LinearLayout;
 import android.widget.ListView;
 import cn.eoe.app.R;
 import cn.eoe.app.adapter.BasePageAdapter;
-import cn.eoe.app.biz.BaseDao;
 import cn.eoe.app.biz.SearchDao;
-import cn.eoe.app.entity.CategorysEntity;
 import cn.eoe.app.ui.base.BaseFragmentActivity;
+import cn.eoe.app.utils.SearchRequestCoordinator;
 
 public class SearchActivity extends BaseFragmentActivity implements
 		OnClickListener {
@@ -36,9 +34,12 @@ public class SearchActivity extends BaseFragmentActivity implements
 	private InputMethodManager imm;
 	private ViewPager mViewPager;
 	private BasePageAdapter mBasePageAdapter;
-	private List<Object> categoryList;
-	private SearchDao searchDao;
 	private ImageView mWait;
+
+	/** Issues a fresh token per search so only the most recent one renders. */
+	private final SearchRequestCoordinator searchCoordinator = new SearchRequestCoordinator();
+	/** The currently running search task, kept so a newer search can cancel it. */
+	private MyTask currentTask;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -53,10 +54,8 @@ public class SearchActivity extends BaseFragmentActivity implements
 	}
 
 	public void initData() {
-		searchDao = new SearchDao(this);
 		imm = (InputMethodManager) getApplicationContext().getSystemService(
 				Context.INPUT_METHOD_SERVICE);
-
 	}
 
 	public void initView() {
@@ -82,17 +81,14 @@ edtSearch.setHint("即将为您搜索 " + mTag);
 
 		edtSearch.setOnKeyListener(new View.OnKeyListener() {
 			public boolean onKey(View v, int keyCode, KeyEvent event) {
-				if (keyCode == KeyEvent.KEYCODE_ENTER) {
-					if (v.getTag() == null) {
-						v.setTag(1);
-						edtSearch.clearFocus();
-						String searchContent = edtSearch.getText().toString();
-						searchDao.setValue(mTag, searchContent);
-						new MyTask().execute(searchDao);
-
-					} else {
-						v.setTag(null);
-					}
+				// Only react to the key-down of ENTER. A physical key press
+				// delivers both ACTION_DOWN and ACTION_UP; deduping on the
+				// action (instead of the old toggling View tag) guarantees
+				// exactly one search per press and removes the "every other
+				// Enter is ignored" behaviour of the previous tag switch.
+				if (keyCode == KeyEvent.KEYCODE_ENTER
+						&& event.getAction() == KeyEvent.ACTION_DOWN) {
+					startSearch();
 					return true;
 				}
 				return false;
@@ -106,7 +102,36 @@ edtSearch.setHint("即将为您搜索 " + mTag);
 		mViewPager.setAdapter(mBasePageAdapter);
 	}
 
-	public class MyTask extends AsyncTask<BaseDao, String, Map<String, Object>> {
+	/**
+	 * Launches a search for the current input. Each call is stamped with a fresh
+	 * token and cancels the previous in-flight task, so when several searches are
+	 * fired in quick succession only the result of the last one is applied to the
+	 * UI (see {@link SearchRequestCoordinator}). A per-request {@link SearchDao}
+	 * instance is used so concurrent tasks never corrupt one another's state.
+	 */
+	private void startSearch() {
+		edtSearch.clearFocus();
+		String searchContent = edtSearch.getText().toString();
+
+		SearchDao dao = new SearchDao(SearchActivity.this);
+		dao.setValue(mTag, searchContent);
+
+		int token = searchCoordinator.next();
+		if (currentTask != null) {
+			currentTask.cancel(true);
+		}
+		currentTask = new MyTask(token);
+		currentTask.execute(dao);
+	}
+
+	public class MyTask extends AsyncTask<SearchDao, Void, Map<String, Object>> {
+
+		private final int token;
+		private SearchDao dao;
+
+		public MyTask(int token) {
+			this.token = token;
+		}
 
 		@Override
 		protected void onPreExecute() {
@@ -120,25 +145,31 @@ edtSearch.setHint("即将为您搜索 " + mTag);
 		}
 
 		@Override
-		protected Map<String, Object> doInBackground(BaseDao... params) {
-			BaseDao dao = params[0];
-			List<CategorysEntity> categorys = new ArrayList<CategorysEntity>();
-			Map<String, Object> map = new HashMap<String, Object>();
-			if ((categoryList = searchDao.mapperJson()) != null) {
-				categorys = searchDao.getCategorys();
-//				map.put("tabs", categorys);
-				map.put("list", categoryList);
-				return map;
-			} else {
+		protected Map<String, Object> doInBackground(SearchDao... params) {
+			// Read from the per-request DAO passed in params, never a shared
+			// field, so a slow request cannot observe state mutated by a newer
+			// one. The token check in onPostExecute then decides whether this
+			// parsed result is still allowed to reach the UI.
+			dao = params[0];
+			List<Object> list = dao.mapperJson();
+			if (list == null) {
 				return null;
 			}
-
+			Map<String, Object> map = new HashMap<String, Object>();
+			map.put("list", list);
+			return map;
 		}
 
 		@Override
 		protected void onPostExecute(Map<String, Object> result) {
-			// TODO Auto-generated method stub
 			super.onPostExecute(result);
+			// Last-input-wins: if this task was cancelled or a newer search has
+			// since started, drop the stale result without touching the UI so it
+			// can never overwrite the page rendered for a more recent keyword.
+			if (isCancelled() || !searchCoordinator.isLatest(token)) {
+				return;
+			}
+
 			mBasePageAdapter.Clear();
 			mViewPager.removeAllViews();
 
@@ -151,7 +182,7 @@ edtSearch.setHint("即将为您搜索 " + mTag);
 //				txtEmpty.setVisibility(View.VISIBLE);
 				return;
 			}
-			if (searchDao.getHasChild()) {
+			if (dao.getHasChild()) {
 				mBasePageAdapter.addFragment((List) result.get("list"));
 				loadLayout.setVisibility(View.GONE);
 //				txtEmpty.setVisibility(View.GONE);

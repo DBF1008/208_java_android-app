@@ -3,4 +3,6 @@ gen/
 /proguard
 /project
 */Thumbs.db
+# Output of run_unit_tests.sh (compiled pure-Java test classes)
+build/
 ../gi sttusgt statu
