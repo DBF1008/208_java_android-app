@@ -5,7 +5,6 @@ import java.util.List;
 
 import android.app.Activity;
 import android.os.Bundle;
-import android.os.Handler;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -18,27 +17,14 @@ import cn.eoe.app.biz.WikiDao;
 import cn.eoe.app.entity.WikiCategoryListEntity;
 import cn.eoe.app.entity.WikiContentItem;
 import cn.eoe.app.entity.WikiMoreResponse;
+import cn.eoe.app.entity.base.BaseContentList;
 
 public class WikiFragment extends BaseListFragment {
 
 	List<WikiContentItem> items_list = new ArrayList<WikiContentItem>();
 	private Activity mActivity;
-	private WikiCategoryListEntity loadMoreEntity;
 	private MyAdapter mAdapter;
 	private String more_url;
-
-	private Handler mHandler = new Handler() {
-		public void handleMessage(android.os.Message msg) {
-			switch (msg.what) {
-			case 0:
-				more_url = loadMoreEntity.getMore_url();
-				mAdapter.appendToList(loadMoreEntity.getItems());
-				break;
-			}
-			onLoad();
-		};
-
-	};
 
 	public WikiFragment(Activity c, WikiCategoryListEntity categorys) {
 		this.mActivity = c;
@@ -141,23 +127,21 @@ public class WikiFragment extends BaseListFragment {
 	}
 
 	@Override
-	public void onLoadMore() {
-		if (more_url==null || more_url.equals("")) {
-			mHandler.sendEmptyMessage(1);
-			return;
-		} else {
-			new Thread() {
-				@Override
-				public void run() {
-					WikiMoreResponse response = new WikiDao(mActivity)
-							.getMore(more_url);
-					if (response != null) {
-						loadMoreEntity = response.getResponse();
-						mHandler.sendEmptyMessage(0);
-					}
-				}
-			}.start();
-		}
+	protected boolean hasMoreToLoad() {
+		return more_url != null && !more_url.equals("");
+	}
+
+	@Override
+	protected BaseContentList fetchMorePage() {
+		WikiMoreResponse response = new WikiDao(mActivity).getMore(more_url);
+		return response != null ? response.getResponse() : null;
+	}
+
+	@Override
+	protected void applyMorePage(BaseContentList page) {
+		WikiCategoryListEntity entity = (WikiCategoryListEntity) page;
+		more_url = entity.getMore_url();
+		mAdapter.appendToList(entity.getItems());
 	}
 
 }

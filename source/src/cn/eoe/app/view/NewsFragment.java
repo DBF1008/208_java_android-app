@@ -6,8 +6,6 @@ import java.util.List;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.Message;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -21,6 +19,7 @@ import cn.eoe.app.biz.NewsDao;
 import cn.eoe.app.entity.NewsCategoryListEntity;
 import cn.eoe.app.entity.NewsContentItem;
 import cn.eoe.app.entity.NewsMoreResponse;
+import cn.eoe.app.entity.base.BaseContentList;
 import cn.eoe.app.utils.ImageUtil;
 
 @SuppressLint("NewApi")
@@ -30,24 +29,6 @@ public class NewsFragment extends BaseListFragment {
 	private List<NewsContentItem> items_list = new ArrayList<NewsContentItem>();
 	private String more_url;
 	private MyAdapter mAdapter;
-	private NewsCategoryListEntity loadMoreEntity;
-
-	// private DisplayImageOptions options;
-	private Handler mHandler = new Handler() {
-		@Override
-		public void handleMessage(Message msg) {
-			// TODO Auto-generated method stub
-			super.handleMessage(msg);
-			switch (msg.what) {
-			case 0:
-				more_url = loadMoreEntity.getMore_url();
-				mAdapter.appendToList(loadMoreEntity.getItems());
-				break;
-			}
-			onLoad();
-		}
-
-	};
 
 	// add this constructor by King0769, 2013/5/7
 	// in order to solve an exception that "can't instantiate class cn.eoe.app.view.NewsFragment; no empty constructor"
@@ -172,29 +153,21 @@ public class NewsFragment extends BaseListFragment {
 	}
 
 	@Override
-	public void onLoadMore() {
-		// TODO Auto-generated method stub
-		if (more_url==null || more_url.equals("")) {
-			mHandler.sendEmptyMessage(1);
-			return;
-		} else {
+	protected boolean hasMoreToLoad() {
+		return more_url != null && !more_url.equals("");
+	}
 
-			new Thread() {
+	@Override
+	protected BaseContentList fetchMorePage() {
+		NewsMoreResponse response = new NewsDao(mActivity).getMore(more_url);
+		return response != null ? response.getResponse() : null;
+	}
 
-				@Override
-				public void run() {
-					NewsMoreResponse response = new NewsDao(mActivity)
-							.getMore(more_url);
-					if (response != null) {
-						loadMoreEntity = response.getResponse();
-						mHandler.sendEmptyMessage(0);
-					}
-					super.run();
-				}
-			}.start();
-
-		}
-
+	@Override
+	protected void applyMorePage(BaseContentList page) {
+		NewsCategoryListEntity entity = (NewsCategoryListEntity) page;
+		more_url = entity.getMore_url();
+		mAdapter.appendToList(entity.getItems());
 	}
 
 }

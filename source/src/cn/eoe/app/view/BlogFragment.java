@@ -5,7 +5,6 @@ import java.util.List;
 
 import android.app.Activity;
 import android.os.Bundle;
-import android.os.Handler;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -19,6 +18,7 @@ import cn.eoe.app.biz.BlogsDao;
 import cn.eoe.app.entity.BlogContentItem;
 import cn.eoe.app.entity.BlogsCategoryListEntity;
 import cn.eoe.app.entity.BlogsMoreResponse;
+import cn.eoe.app.entity.base.BaseContentList;
 import cn.eoe.app.utils.ImageUtil;
 
 /**
@@ -32,23 +32,10 @@ public class BlogFragment extends BaseListFragment {
 	List<BlogContentItem> items_list = new ArrayList<BlogContentItem>();
 	private Activity mActivity;
 	private String more_url;
-	private BlogsCategoryListEntity loadMoreEntity;
 	private MyAdapter mAdapter;
 
 	public BlogFragment() {
 	}
-
-	private Handler mHandler = new Handler() {
-		public void handleMessage(android.os.Message msg) {
-			switch (msg.what) {
-			case 0:
-				more_url = loadMoreEntity.getMore_url();
-				mAdapter.appendToList(loadMoreEntity.getItems());
-				break;
-			}
-			onLoad();
-		};
-	};
 
 	public BlogFragment(Activity c, BlogsCategoryListEntity categorys) {
 		this.mActivity = c;
@@ -178,25 +165,20 @@ public class BlogFragment extends BaseListFragment {
 	}
 
 	@Override
-	public void onLoadMore() {
-		// TODO Auto-generated method stub
-		if (more_url==null || more_url.equals("")) {
-			mHandler.sendEmptyMessage(1);
-			return;
-		} else {
+	protected boolean hasMoreToLoad() {
+		return more_url != null && !more_url.equals("");
+	}
 
-			new Thread() {
-				@Override
-				public void run() {
-					BlogsMoreResponse response = new BlogsDao(mActivity)
-							.getMore(more_url);
-					if (response != null) {
-						loadMoreEntity = response.getResponse();
-						mHandler.sendEmptyMessage(0);
-					}
-				}
-			}.start();
-		}
+	@Override
+	protected BaseContentList fetchMorePage() {
+		BlogsMoreResponse response = new BlogsDao(mActivity).getMore(more_url);
+		return response != null ? response.getResponse() : null;
+	}
 
+	@Override
+	protected void applyMorePage(BaseContentList page) {
+		BlogsCategoryListEntity entity = (BlogsCategoryListEntity) page;
+		more_url = entity.getMore_url();
+		mAdapter.appendToList(entity.getItems());
 	}
 }
