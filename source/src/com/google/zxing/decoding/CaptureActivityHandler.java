@@ -30,6 +30,7 @@ import cn.eoe.app.R;
 import com.google.zxing.BarcodeFormat;
 import com.google.zxing.CaptureActivity;
 import com.google.zxing.Result;
+import com.google.zxing.ScanLifecycleResources;
 import com.google.zxing.camera.CameraManager;
 import com.google.zxing.view.ViewfinderResultPointCallback;
 
@@ -126,9 +127,16 @@ public final class CaptureActivityHandler extends Handler {
             // continue
         }
 
-        // Be absolutely sure we don't send any queued up messages
-        removeMessages(R.id.decode_succeeded);
-        removeMessages(R.id.decode_failed);
+        // Be absolutely sure we don't leave any queued-up messages behind. The
+        // autofocus loop posts delayed auto_focus messages and the decode loop
+        // posts restart_preview, so those must be purged alongside the decode
+        // results — otherwise a stale message can fire after teardown and keep
+        // the Activity alive or drive the already-released camera on re-entry.
+        for (int what : ScanLifecycleResources.pendingScanMessageIds(
+                R.id.auto_focus, R.id.restart_preview,
+                R.id.decode_succeeded, R.id.decode_failed)) {
+            removeMessages(what);
+        }
     }
 
     private void restartPreviewAndDecode() {

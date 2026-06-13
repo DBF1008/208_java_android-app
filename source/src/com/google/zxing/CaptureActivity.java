@@ -47,6 +47,8 @@ public class CaptureActivity extends Activity implements Callback {
     private String characterSet;
     private InactivityTimer inactivityTimer;
     private MediaPlayer mediaPlayer;
+    /** Owns the beep player's release contract so it cannot leak across lifecycles. */
+    private final ScanLifecycleResources scanResources = new ScanLifecycleResources();
     private boolean playBeep;
     private static final float BEEP_VOLUME = 0.10f;
     private boolean vibrate;
@@ -112,11 +114,19 @@ public class CaptureActivity extends Activity implements Callback {
             handler = null;
         }
         CameraManager.get().closeDriver();
+        // Release the beep player here so audio teardown is symmetric with the
+        // decode handler and camera above. Without this the MediaPlayer leaked
+        // one native audio resource every open/close of the scan page.
+        scanResources.releaseBeep();
     }
 
     @Override
     public void onDestroy() {
         inactivityTimer.shutdown();
+        // Defensive: onPause() normally already released it, but make sure the
+        // beep player is gone even if the Activity is torn down without a
+        // matching onResume()/onPause() pair. releaseBeep() is idempotent.
+        scanResources.releaseBeep();
         super.onDestroy();
     }
 
@@ -206,9 +216,31 @@ public class CaptureActivity extends Activity implements Callback {
                 file.close();
                 mediaPlayer.setVolume(BEEP_VOLUME, BEEP_VOLUME);
                 mediaPlayer.prepare();
+                // Hand the prepared player to the lifecycle owner so it is
+                // guaranteed to be released on pause/destroy.
+                scanResources.attachBeep(new ScanLifecycleResources.Disposable() {
+                    @Override
+                    public void dispose() {
+                        releaseBeepPlayer();
+                    }
+                });
             } catch (IOException e) {
-                mediaPlayer = null;
+                // Preparing failed: release the half-built player instead of
+                // just dropping the reference, so its native handle is freed.
+                releaseBeepPlayer();
             }
+        }
+    }
+
+    /**
+     * Releases and clears the beep {@link MediaPlayer}. Safe to call when no
+     * player exists; this is the single place the player's native resources are
+     * freed.
+     */
+    private void releaseBeepPlayer() {
+        if (mediaPlayer != null) {
+            mediaPlayer.release();
+            mediaPlayer = null;
         }
     }
 
