@@ -4,8 +4,6 @@ import android.content.Context;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
-import android.support.v4.app.FragmentActivity;
-import android.support.v4.app.FragmentManager;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -20,37 +18,60 @@ import cn.eoe.app.entity.UserResponse;
 
 public class UserCollectFragment extends Fragment {
 
+	private static final String ARG_USER_RESPONSE = "arg_user_response";
+
 	LinearLayout mLinearLayout;
-	private FragmentActivity mActivity;
 	private UserResponse mUserResponse;
-	private FragmentManager mFragmentManager;
 	private Context mContext;
 	private WindowManager wm;
-	private UserCollectListFragment mUserFragment;
 
-	public UserCollectFragment(UserResponse userResponse,
-			FragmentActivity activity) {
-		mActivity = activity;
-		mUserResponse = userResponse;
+	/**
+	 * Required empty public constructor. After a configuration change or process
+	 * death the framework re-creates fragments via reflection using this
+	 * no-argument constructor, so all state must be supplied through
+	 * {@link #newInstance(UserResponse)} / the arguments {@link Bundle} rather
+	 * than a custom constructor or an {@code Activity} field.
+	 */
+	public UserCollectFragment() {
+	}
+
+	public static UserCollectFragment newInstance(UserResponse userResponse) {
+		UserCollectFragment fragment = new UserCollectFragment();
+		Bundle args = new Bundle();
+		args.putSerializable(ARG_USER_RESPONSE, userResponse);
+		fragment.setArguments(args);
+		return fragment;
+	}
+
+	@Override
+	public void onCreate(Bundle savedInstanceState) {
+		super.onCreate(savedInstanceState);
+		if (getArguments() != null) {
+			mUserResponse = (UserResponse) getArguments().getSerializable(
+					ARG_USER_RESPONSE);
+		}
 	}
 
 	@Override
 	public View onCreateView(LayoutInflater inflater, ViewGroup container,
 			Bundle savedInstanceState) {
-		// TODO Auto-generated method stub
-		super.onCreateView(inflater, container, savedInstanceState);
 		mContext = inflater.getContext();
-		wm = (WindowManager) mActivity.getSystemService(Context.WINDOW_SERVICE);
+		wm = (WindowManager) getActivity().getSystemService(
+				Context.WINDOW_SERVICE);
 		View view = inflater.inflate(R.layout.user_collect_fragment, null);
 		mLinearLayout = (LinearLayout) view
 				.findViewById(R.id.user_linear_collect_name);
 		initLinear();
-		mFragmentManager = mActivity.getSupportFragmentManager();
-		mUserFragment = new UserCollectListFragment(mActivity, mUserResponse
-				.getFavorite().get(0));
-		mFragmentManager.beginTransaction()
-				.replace(R.id.user_linear_Collect_replace, mUserFragment)
-				.commit();
+		// Add the nested list fragment only on first creation. After a
+		// configuration change / process death the child FragmentManager
+		// restores it automatically, so re-adding would duplicate it.
+		if (savedInstanceState == null) {
+			UserCollectListFragment listFragment = UserCollectListFragment
+					.newInstance(mUserResponse.getFavorite().get(0));
+			getChildFragmentManager().beginTransaction()
+					.replace(R.id.user_linear_Collect_replace, listFragment)
+					.commit();
+		}
 		return view;
 	}
 
@@ -62,6 +83,16 @@ public class UserCollectFragment extends Fragment {
 				mLinearLayout.addView(CreateSide());
 			}
 		}
+	}
+
+	/**
+	 * Returns the currently attached list fragment, looked up from the child
+	 * FragmentManager so the reference stays valid after the host fragment is
+	 * re-created (the system restores the child into the same container).
+	 */
+	private UserCollectListFragment getListFragment() {
+		return (UserCollectListFragment) getChildFragmentManager()
+				.findFragmentById(R.id.user_linear_Collect_replace);
 	}
 
 	private TextView CreateTextView(final int i, String name) {
@@ -83,8 +114,11 @@ public class UserCollectFragment extends Fragment {
 			@Override
 			public void onClick(View v) {
 				// TODO Auto-generated method stub
-				mUserFragment
-						.setListContent(mUserResponse.getFavorite().get(i));
+				UserCollectListFragment listFragment = getListFragment();
+				if (listFragment != null) {
+					listFragment.setListContent(mUserResponse.getFavorite().get(
+							i));
+				}
 				if (mLinearLayout.getTag() != null) {
 					((View) mLinearLayout.getTag())
 							.setBackgroundColor(Color.TRANSPARENT);

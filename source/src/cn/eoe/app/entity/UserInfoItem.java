@@ -1,8 +1,12 @@
 package cn.eoe.app.entity;
 
+import java.io.Serializable;
 import java.util.List;
 
-public class UserInfoItem {
+public class UserInfoItem implements Serializable {
+
+	private static final long serialVersionUID = 1L;
+
 	private String name;
 	private String level;
 	private String points;

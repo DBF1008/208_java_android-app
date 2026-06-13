@@ -1,8 +1,12 @@
 package cn.eoe.app.entity;
 
+import java.io.Serializable;
 import java.util.List;
 
-public class UserResponse {
+public class UserResponse implements Serializable {
+
+	private static final long serialVersionUID = 1L;
+
 	private UserInfoItem info;
 	private List<UserFavoriteList> favorite;
 

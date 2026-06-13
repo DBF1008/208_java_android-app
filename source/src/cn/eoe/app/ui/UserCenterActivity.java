@@ -142,17 +142,18 @@ public class UserCenterActivity extends BaseFragmentActivity implements
 			super.onPostExecute(result);
 			loadLayout.setVisibility(View.GONE);
 			if (result == null) {
-				UserLogOutFragment fragment=new UserLogOutFragment(
-						UserCenterActivity.this,true);
-				
+				UserLogOutFragment fragment = UserLogOutFragment
+						.newInstance(true);
+
 				mTabsAdapter.addTab(getString(R.string.user_center_get_info_error),fragment );
 				return;
 			}
-			mTabsAdapter.addTab(getString(R.string.user_center_my_Collect), new UserCollectFragment(result,
-					UserCenterActivity.this));
-			mTabsAdapter.addTab(getString(R.string.user_center_my_Intro), new UserIntroFragment(result));
-			mTabsAdapter.addTab(getString(R.string.user_center_exit), new UserLogOutFragment(
-					UserCenterActivity.this,false));
+			mTabsAdapter.addTab(getString(R.string.user_center_my_Collect),
+					UserCollectFragment.newInstance(result));
+			mTabsAdapter.addTab(getString(R.string.user_center_my_Intro),
+					UserIntroFragment.newInstance(result));
+			mTabsAdapter.addTab(getString(R.string.user_center_exit),
+					UserLogOutFragment.newInstance(false));
 			mTabsAdapter.notifyDataSetChanged();
 			mViewPager.setCurrentItem(1);
 		}

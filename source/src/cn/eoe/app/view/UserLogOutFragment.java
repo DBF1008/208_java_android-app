@@ -1,6 +1,5 @@
 package cn.eoe.app.view;
 
-import android.app.Activity;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.os.Bundle;
@@ -16,16 +15,38 @@ import cn.eoe.app.ui.UserLoginUidActivity;
 
 public class UserLogOutFragment extends Fragment implements OnClickListener {
 
+	private static final String ARG_SHOW_ERROR = "arg_show_error";
+
 	private Button btnLogOut;
 	private TextView mtxt;
 
 	private Context mContext;
-	private Activity mActivity;
 	private boolean isShowtxt;
 
-	public UserLogOutFragment(Activity activity,boolean isshow) {
-		mActivity = activity;
-		isShowtxt=isshow;
+	/**
+	 * Required empty public constructor. After a configuration change or process
+	 * death the framework re-creates fragments via reflection using this
+	 * no-argument constructor, so all state must be supplied through
+	 * {@link #newInstance(boolean)} / the arguments {@link Bundle} rather than a
+	 * custom constructor or an {@code Activity} field.
+	 */
+	public UserLogOutFragment() {
+	}
+
+	public static UserLogOutFragment newInstance(boolean isShow) {
+		UserLogOutFragment fragment = new UserLogOutFragment();
+		Bundle args = new Bundle();
+		args.putBoolean(ARG_SHOW_ERROR, isShow);
+		fragment.setArguments(args);
+		return fragment;
+	}
+
+	@Override
+	public void onCreate(Bundle savedInstanceState) {
+		super.onCreate(savedInstanceState);
+		if (getArguments() != null) {
+			isShowtxt = getArguments().getBoolean(ARG_SHOW_ERROR);
+		}
 	}
 
 	@Override
@@ -59,7 +80,7 @@ public class UserLogOutFragment extends Fragment implements OnClickListener {
 					UserLoginUidActivity.SharedName, Context.MODE_PRIVATE);
 			SharedPreferences.Editor edit = share.edit();
 			edit.clear().commit();
-			mActivity.finish();
+			getActivity().finish();
 			break;
 		}
 	}

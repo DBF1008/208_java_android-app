@@ -34,8 +34,33 @@ public class UserIntroFragment extends Fragment {
 	private List<Map<String, Object>> mList;
 	private Context mContext;
 
-	public UserIntroFragment(UserResponse result) {
-		mUserResponse = result;
+	private static final String ARG_USER_RESPONSE = "arg_user_response";
+
+	/**
+	 * Required empty public constructor. After a configuration change or process
+	 * death the framework re-creates fragments via reflection using this
+	 * no-argument constructor, so all state must be supplied through
+	 * {@link #newInstance(UserResponse)} / the arguments {@link Bundle} rather
+	 * than a custom constructor.
+	 */
+	public UserIntroFragment() {
+	}
+
+	public static UserIntroFragment newInstance(UserResponse result) {
+		UserIntroFragment fragment = new UserIntroFragment();
+		Bundle args = new Bundle();
+		args.putSerializable(ARG_USER_RESPONSE, result);
+		fragment.setArguments(args);
+		return fragment;
+	}
+
+	@Override
+	public void onCreate(Bundle savedInstanceState) {
+		super.onCreate(savedInstanceState);
+		if (getArguments() != null) {
+			mUserResponse = (UserResponse) getArguments().getSerializable(
+					ARG_USER_RESPONSE);
+		}
 	}
 
 	// [start]继承方法

@@ -25,18 +25,42 @@ import cn.eoe.app.utils.IntentUtil;
 
 public class UserCollectListFragment extends Fragment implements
 		OnItemClickListener {
+
+	private static final String ARG_FAVORITE_LIST = "arg_favorite_list";
+
 	private ListView mlv;
 	private List<Map<String, Object>> mlist;
 	private SimpleAdapter mAdapter;
 	private Context mContext;
-	private Activity mActivity;
 
 	private UserFavoriteList mUserFavoriteList;
 
-	public UserCollectListFragment(Activity activity,
+	/**
+	 * Required empty public constructor. After a configuration change or process
+	 * death the framework re-creates fragments via reflection using this
+	 * no-argument constructor, so all state must be supplied through
+	 * {@link #newInstance(UserFavoriteList)} / the arguments {@link Bundle}
+	 * rather than a custom constructor or an {@code Activity} field.
+	 */
+	public UserCollectListFragment() {
+	}
+
+	public static UserCollectListFragment newInstance(
 			UserFavoriteList userFavoriteList) {
-		mUserFavoriteList = userFavoriteList;
-		mActivity = activity;
+		UserCollectListFragment fragment = new UserCollectListFragment();
+		Bundle args = new Bundle();
+		args.putSerializable(ARG_FAVORITE_LIST, userFavoriteList);
+		fragment.setArguments(args);
+		return fragment;
+	}
+
+	@Override
+	public void onCreate(Bundle savedInstanceState) {
+		super.onCreate(savedInstanceState);
+		if (getArguments() != null) {
+			mUserFavoriteList = (UserFavoriteList) getArguments()
+					.getSerializable(ARG_FAVORITE_LIST);
+		}
 	}
 
 	@Override
@@ -76,13 +100,18 @@ public class UserCollectListFragment extends Fragment implements
 		HashMap<String, Object> map = (HashMap<String, Object>) arg0
 				.getItemAtPosition(arg2);
 		// 转到详情页面
-		startDetailActivity(mActivity, map.get("target").toString(),
+		startDetailActivity(getActivity(), map.get("target").toString(),
 				mUserFavoriteList.getName().toString(), map.get("name")
 						.toString());
 	}
 
 	public void setListContent(UserFavoriteList userFavoriteList) {
 		mUserFavoriteList = userFavoriteList;
+		// Keep the arguments in sync so the user's selected category — not just
+		// the default one — is restored after a configuration change.
+		if (getArguments() != null) {
+			getArguments().putSerializable(ARG_FAVORITE_LIST, userFavoriteList);
+		}
 		mlist.clear();
 		getData();
 		mAdapter.notifyDataSetChanged();
