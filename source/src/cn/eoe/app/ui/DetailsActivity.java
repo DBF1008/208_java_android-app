@@ -9,6 +9,7 @@ import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.text.TextUtils;
 import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.View;
@@ -138,14 +139,25 @@ public class DetailsActivity extends BaseActivity implements OnClickListener {
     }
 
     private void initAppraise() {
+        // 未登录时不读取本地评价状态，避免跨账号污染
+        if (TextUtils.isEmpty(mKey)) {
+            return;
+        }
         mDetailDB = new DetailDB(this);
-        Cursor cursor = mDetailDB.querySQL(mUrl);
-        if (cursor.moveToFirst()) {
-            mDBID = cursor.getInt(cursor.getColumnIndex(DetailColumn._ID));
-            setAppraise(
-                    cursor.getInt(cursor.getColumnIndex(DetailColumn.GOOD)),
-                    cursor.getInt(cursor.getColumnIndex(DetailColumn.BAD)),
-                    cursor.getInt(cursor.getColumnIndex(DetailColumn.COLLECT)));
+        Cursor cursor = null;
+        try {
+            cursor = mDetailDB.querySQL(mUrl, mKey);
+            if (cursor != null && cursor.moveToFirst()) {
+                mDBID = cursor.getInt(cursor.getColumnIndex(DetailColumn._ID));
+                setAppraise(
+                        cursor.getInt(cursor.getColumnIndex(DetailColumn.GOOD)),
+                        cursor.getInt(cursor.getColumnIndex(DetailColumn.BAD)),
+                        cursor.getInt(cursor.getColumnIndex(DetailColumn.COLLECT)));
+            }
+        } finally {
+            if (cursor != null) {
+                cursor.close();
+            }
         }
     }
 
@@ -189,20 +201,29 @@ public class DetailsActivity extends BaseActivity implements OnClickListener {
     protected void onPause() {
         // TODO Auto-generated method stub
         super.onPause();
-        // 保存状态
-        if (mKey.equals(null) && mKey.equals("")) {
+        // 保存状态 — 未登录时不写库，防止空 key 污染数据
+        if (TextUtils.isEmpty(mKey)) {
             return;
         }
-        if (mDBID == -1 && (IsGood || IsBed || IsCollect)) {
-            // 添加
-            mDetailDB.insertSQL(mUrl, mKey, IsGood ? 1 : 0, IsBed ? 1 : 0,
-                    IsCollect ? 1 : 0);
-        } else if (mDBID != -1) {
-            // 修改
-            mDetailDB.updateSQL(mDBID, IsGood ? 1 : 0, IsBed ? 1 : 0,
-                    IsCollect ? 1 : 0);
+        if (mDetailDB == null) {
+            return;
         }
-        mDetailDB.dbClose();
+        try {
+            if (mDBID == -1 && (IsGood || IsBed || IsCollect)) {
+                // 添加
+                long newId = mDetailDB.insertSQL(mUrl, mKey,
+                        IsGood ? 1 : 0, IsBed ? 1 : 0, IsCollect ? 1 : 0);
+                if (newId != -1) {
+                    mDBID = (int) newId;
+                }
+            } else if (mDBID != -1) {
+                // 修改
+                mDetailDB.updateSQL(mDBID, mKey,
+                        IsGood ? 1 : 0, IsBed ? 1 : 0, IsCollect ? 1 : 0);
+            }
+        } finally {
+            mDetailDB.dbClose();
+        }
     }
 
     class MyTask extends AsyncTask<String, Integer, String> {
@@ -273,7 +294,7 @@ public class DetailsActivity extends BaseActivity implements OnClickListener {
         }
         if (responseEntity == null)
             return;
-        if (mKey.equals(null) || mKey.equals("")) {
+        if (TextUtils.isEmpty(mKey)) {
             showLongToast(getResources().getString(R.string.user_login_prompt));
             return;
         }

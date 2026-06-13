@@ -46,4 +46,10 @@ public class DetailColumn extends DatabaseColumn {
 		return mColumnMap;
 	}
 
+	@Override
+	public String getTableCreateor() {
+		return super.getTableCreateor().replace(")",
+				", UNIQUE(" + URL + ", " + KEY + "))");
+	}
+
 }
