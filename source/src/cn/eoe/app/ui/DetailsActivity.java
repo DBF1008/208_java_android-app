@@ -30,6 +30,7 @@ import cn.eoe.app.https.NetWorkHelper;
 import cn.eoe.app.ui.base.BaseActivity;
 import cn.eoe.app.utils.CommonUtil;
 import cn.eoe.app.utils.IntentUtil;
+import cn.eoe.app.utils.LoginUtils;
 import cn.eoe.app.utils.Utility;
 
 public class DetailsActivity extends BaseActivity implements OnClickListener {
@@ -139,13 +140,24 @@ public class DetailsActivity extends BaseActivity implements OnClickListener {
 
     private void initAppraise() {
         mDetailDB = new DetailDB(this);
-        Cursor cursor = mDetailDB.querySQL(mUrl);
-        if (cursor.moveToFirst()) {
-            mDBID = cursor.getInt(cursor.getColumnIndex(DetailColumn._ID));
-            setAppraise(
-                    cursor.getInt(cursor.getColumnIndex(DetailColumn.GOOD)),
-                    cursor.getInt(cursor.getColumnIndex(DetailColumn.BAD)),
-                    cursor.getInt(cursor.getColumnIndex(DetailColumn.COLLECT)));
+        // 未登录用户不读取任何账号的本地评价状态，避免不同账号之间串号
+        if (!LoginUtils.isLoggedIn(mKey)) {
+            return;
+        }
+        // 按 (url, key) 联合查询，只取当前登录账号自己的状态
+        Cursor cursor = mDetailDB.querySQL(mUrl, mKey);
+        try {
+            if (cursor != null && cursor.moveToFirst()) {
+                mDBID = cursor.getInt(cursor.getColumnIndex(DetailColumn._ID));
+                setAppraise(
+                        cursor.getInt(cursor.getColumnIndex(DetailColumn.GOOD)),
+                        cursor.getInt(cursor.getColumnIndex(DetailColumn.BAD)),
+                        cursor.getInt(cursor.getColumnIndex(DetailColumn.COLLECT)));
+            }
+        } finally {
+            if (cursor != null) {
+                cursor.close();
+            }
         }
     }
 
@@ -189,8 +201,8 @@ public class DetailsActivity extends BaseActivity implements OnClickListener {
     protected void onPause() {
         // TODO Auto-generated method stub
         super.onPause();
-        // 保存状态
-        if (mKey.equals(null) && mKey.equals("")) {
+        // 保存状态：未登录用户不落库，避免把空账号状态写进数据库
+        if (!LoginUtils.isLoggedIn(mKey)) {
             return;
         }
         if (mDBID == -1 && (IsGood || IsBed || IsCollect)) {
@@ -273,7 +285,7 @@ public class DetailsActivity extends BaseActivity implements OnClickListener {
         }
         if (responseEntity == null)
             return;
-        if (mKey.equals(null) || mKey.equals("")) {
+        if (!LoginUtils.isLoggedIn(mKey)) {
             showLongToast(getResources().getString(R.string.user_login_prompt));
             return;
         }

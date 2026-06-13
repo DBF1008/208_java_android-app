@@ -45,8 +45,15 @@ public class DetailDB {
 		return dbHelper.delete(DetailColumn.TABLE_NAME, id);
 	}
 
-	public Cursor querySQL(String url) {
-		String SQL="select * from "+DetailColumn.TABLE_NAME+" where "+DetailColumn.URL+"='"+url+"'";
+	/**
+	 * 按文章 url + 登录账号 key 查询本地评价记录。
+	 *
+	 * <p>必须同时带上 key，否则不同账号会读到彼此的点赞/踩/收藏状态（串号）。
+	 * 查询语句由 {@link AppraiseQuery#build} 构造，便于在不依赖 Android 的情况下做回归测试。
+	 */
+	public Cursor querySQL(String url, String key) {
+		String SQL = AppraiseQuery.build(DetailColumn.TABLE_NAME, DetailColumn.URL,
+				url, DetailColumn.KEY, key);
 		return dbHelper.rawQuery(SQL, null);
 	}
 
