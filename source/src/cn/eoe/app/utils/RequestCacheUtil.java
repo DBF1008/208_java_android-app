@@ -83,11 +83,11 @@ public class RequestCacheUtil {
 		String result = "";
 		if (useCache) {
 			result = getStringFromSoftReference(requestUrl);
-			if (!result.equals(null) && !result.equals("")) {
+			if (ResponseValidator.isValidResponse(result)) {
 				return result;
 			}
 			result = getStringFromLocal(requestPath, requestUrl, dbHelper);
-			if (!result.equals(null) && !result.equals("")) {
+			if (ResponseValidator.isValidResponse(result)) {
 				putStringForSoftReference(requestUrl, result);
 				return result;
 			}
@@ -111,8 +111,10 @@ public class RequestCacheUtil {
 		String result = "";
 		try {
 			result = HttpUtils.getByHttpClient(context, requestUrl);
-			if (result.equals(null) && result.equals("")) {
-				return result;
+			// 只有拿到有效响应才刷新缓存：网络失败(null)、空字符串、纯空白都视为无效，
+			// 此时保留已有的本地文件/内存软缓存，避免被坏响应污染。
+			if (!ResponseValidator.isValidResponse(result)) {
+				return "";
 			}
 			// 更新数据库
 			Cursor cursor = getStringFromDB(requestUrl, dbHelper);
@@ -122,7 +124,10 @@ public class RequestCacheUtil {
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
-		return result;
+		// 走到这里要么成功刷新了缓存，要么是刷新过程中抛了异常。
+		// 不论哪种都不返回 null/无效内容：有效则返回本次结果，否则返回空串，
+		// 让上层在下次（或离线）读取时仍能回退到未被污染的旧缓存。
+		return ResponseValidator.isValidResponse(result) ? result : "";
 	}
 
 	private static void saveFileByRequestPath(String requestPath, String result) {
@@ -183,7 +188,7 @@ public class RequestCacheUtil {
 		if (RequestCache.containsKey(requestUrl)) {
 			SoftReference<String> reference = RequestCache.get(requestUrl);
 			String result = (String) reference.get();
-			if (result != null && !result.equals("")) {
+			if (ResponseValidator.isValidResponse(result)) {
 				return result;
 			}
 		}
